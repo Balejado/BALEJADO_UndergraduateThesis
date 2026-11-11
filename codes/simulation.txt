@@ -1,0 +1,127 @@
+# Loop settings
+
+variable Ntotal equal 10 # system_sizes : {10, 30, 50, 70, 100, 200}
+variable Lf equal 0.803e-5 # box sizes, with respect to system sizes : {08.03μm, 13.91μm, 17.96μm , 21.25μm, 25.40μm, 35.92μm}
+variable seed index 11111 #, 22222, 33333, 44444, 55555, 66666 ,77777, 88888, 99999, 10101 # depends on how many trials to do
+label loop_seed
+
+  variable probe_percent index 0.1 #, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.99 # percentage of probe in the system size
+  label loop_percent 
+  variable Np_temp equal round(${Ntotal}*${probe_percent})
+  if "${Np_temp} < 1" then "variable Nprobe equal 1" else "variable Nprobe equal ${Np_temp}"
+  variable Nmeth equal ${Ntotal}-${Nprobe}
+
+label loop_time
+variable run_prod index 100000 # simulation runtime: 100 mil timesteps = 1 seconds
+
+# Intialization of the system
+clear
+units si
+dimension 2
+atom_style sphere
+boundary p p p
+thermo 1000
+
+# Defining  the Box
+variable expand equal 4.0
+variable Li equal ${expand}*${Lf}
+region box block 0 ${Li} 0 ${Li} -1e-6 1e-6 units box
+create_box 2 box
+
+# Particle parameters
+variable rho equal 1050.0
+variable r equal 1.0e-6
+variable d_probe equal 2.0e-6
+variable d_meth equal 1.0e-6
+variable m equal ${rho}*(4.0/3.0)*PI*${r}^3
+
+# Creating the particles
+variable seed_meth equal ${seed}+9876
+create_atoms 1 random ${Nprobe} ${seed} box
+create_atoms 2 random ${Nmeth}  ${seed_meth} box
+
+set type 1 mass ${m}
+set type 2 mass ${m}
+set type 1 diameter ${d_probe}
+set type 2 diameter ${d_meth}
+
+group probe type 1
+group meth  type 2
+
+velocity all set 0.0 0.0 0.0
+
+neighbor 3.0e-6 bin
+neigh_modify delay 0 every 1 check yes
+
+# 3 Stage simulation to ensure reliable diffusion
+# Optional: First dump - overall dump
+# dump dbg all custom 5000 dump_debug_Np${Nprobe}_seed${seed} id type x y vx vy
+# dump_modify dbg sort id
+
+# STAGE 1: OVERLAP REMOVAL (SOFT, OVERDAMPED)
+timestep 5.0e-8
+pair_style soft 3.0e-6
+pair_coeff * * 50.0
+fix relax all langevin 298 298 1.0e-6 ${seed}
+fix lim all nve/limit 1.0e-8
+fix e2d all enforce2d
+run 50000
+unfix relax
+unfix lim
+unfix e2d
+
+# STAGE 2: COMPRESSION (STILL SOFT)
+fix comp all deform 1 x final 0 ${Lf} y final 0 ${Lf} units box remap x
+fix relax2 all langevin 298 298 1.0e-6 ${seed}
+fix lim2 all nve/limit 1.0e-8
+fix e2d2 all enforce2d
+run 100000
+unfix comp
+unfix relax2
+unfix lim2
+unfix e2d2
+
+# STAGE 3: WCA + BROWNIAN PRODUCTION
+timestep 1.0e-8
+variable methprobe equal (${d_probe}+${d_meth})/2
+variable denominator equal 1.122462
+
+variable sigma11 equal ${d_probe}/${denominator}
+variable sigma22 equal ${d_meth}/${denominator}
+variable sigma12 equal ${methprobe}/${denominator}
+variable rc11 equal 1.122462*${sigma11}
+variable rc22 equal 1.122462*${sigma22}
+variable rc12 equal 1.122462*${sigma12}
+
+variable ljcut equal ${rc12}
+pair_style lj/cut ${ljcut}
+pair_modify shift yes
+pair_coeff 1 1 1.0e-21 ${sigma11} ${rc11}
+pair_coeff 2 2 1.0e-21 ${sigma22} ${rc22}
+pair_coeff 1 2 1.0e-21 ${sigma12} ${rc12}
+
+variable seed2 equal ${seed}+12345
+fix brown1 probe langevin 298 298 2.62e-7 ${seed} 
+fix brown2 meth langevin 298 298 1e-7 ${seed2} 
+fix int all nve
+fix e2d3 all enforce2d
+
+compute disp all displace/atom
+dump prod all custom 100 dump_Ntot${Ntotal}_Np${Nprobe}_Nm${Nmeth}_seed${seed} id type x y
+dump_modify prod sort id
+
+run ${run_prod}
+
+#CLEANUP
+unfix brown1 
+unfix brown2
+unfix int
+unfix e2d3
+undump prod 
+
+# loop Control
+  next probe_percent
+  jump SELF loop_percent
+
+next seed
+jump SELF loop_seed

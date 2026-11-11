@@ -1,0 +1,44 @@
+# Initialization
+units si
+dimension 2
+atom_style sphere
+
+# Box
+boundary p p p
+region box block 0 5e-6 0 5e-6 -0.001 0.001 units box
+create_box 1 box
+
+# Single Particle
+create_atoms 1 single 2.5e-6 2.5e-6 0
+
+# Particle Mass
+variable density equal 1050
+variable radius equal 1e-6  
+variable volume equal (4/3.0)*3.14159*${radius}^3
+variable mass equal ${density}*${volume}
+set atom 1 mass ${mass}
+
+# Particle Diameter
+set atom 1 diameter 2e-6  # 2 micron diameter
+
+# Dummy Pair Style
+pair_style none
+
+fix 1 all langevin 298 298 2.62e-7 23451
+
+fix 2 all nve/sphere
+fix enforce2d all enforce2d
+
+# for computing displacement
+compute myDisplacement all displace/atom
+
+# Dump
+dump 1 all custom 1500 5dump3.1500 id type x y z vx vy c_myDisplacement[1] c_myDisplacement[2]
+
+thermo 100
+timestep 5.00E-08
+run 5000000
+
+# dump2 (5e-8) (1 million timestep)
+# dump3 (5e-8) (5 million timestep)
+# dump4 (5e-8) (10 million timestep)
