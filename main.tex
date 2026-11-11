@@ -1,0 +1,91 @@
+%% 
+%% main.tex
+%% Formatted NIP thesis conformed with the CS guidelines for the MS
+%% Thesis and PhD Dissertation accepted for year 2005 onwards.
+%% See nip.sty for possible modifications.
+%%
+%% Copyright (C) 2006  Johnrob Y. Bantang: johnrob.bantang@gmail.com
+%%
+%% This tex is free; you can redistribute it and/or modify it under
+%% the terms of the GU General Public License as published by the
+%% Free Software Foundation version 2. See gpl.txt.
+%%
+%% This tex files are distributed in the hope that it will be useful,
+%% but WITHOUT ANY WARRANTY; without even the implied warranty of
+%% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+%% General Public License for more details.
+%%
+%% You should have received a copy of the GNU General Public License
+%% along with this program; if not, write to the Free Software
+%% Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+%% 02110-1301, USA.
+%%
+%%
+%%
+
+
+\documentclass[bs]{nip3} %%use nip class
+%% to add options: phd, ms, bs, applied
+\usepackage[a4paper, total={6in, 9.25in}]{geometry}
+%%packages to be used.
+\usepackage[square,numbers,sort&compress]{natbib}
+   %% square-bracketed, numbered, sorted, and compressed citations
+   %% for more info: http://merkel.zoneo.net/Latex/natbib.php
+\usepackage{verbatim} %% for \verbatiminput
+\usepackage{graphicx} %% for the graphics environment
+\usepackage[centertags]{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{newlfont}
+\usepackage{subfigure}
+\usepackage{hyperref}
+\usepackage{float}
+\usepackage{siunitx}
+%% Header section
+\title{Optimal Probe Density for Brownian First-Passage Detection of Impurities: The Detection Caldera} %%required
+\author{Venser H. Balejado} %% required
+\email{vhbalejado@up.edu.ph}%% appears only when draft version use \draft option.
+\adviser{Caesar A. Saloma}{Ph.D.}%% required
+\coadviser{Giovanni A. Tapang}{Ph.D.}
+\reader{Caesar A. Saloma}{Ph.D.}%% required
+%\secondReader{Giovanni A. Tapang}{Ph.D.}%% optional if with coadviser
+%% replace "\coadviser" with "\secondReader" if no co-adviser
+\director{Cristine DLR. Villagonzalo}{Dr.rer.nat.}%% required
+\dean{Cynthia P. Saloma}{Ph.D.} %%required
+\gradyear{2026} \gradmonth{} %%graduation month and year
+\defenseDate{xx June 2021}
+\degreelevel{Bachelor of Science}
+\course{Applied Physics}
+
+%% Preliminary pages' contents input here..
+%\dedication{ \input{dedication.tex} }%% optional, see dedication.tex for sample content.
+\acknowledgments{ \input{acknowledgments.tex} } %% optional, see acknowledgment.tex for sample content.
+\abstract{ \input{0abstract.tex} } %% see abstract.tex
+% \pacs{01.20.+x [Communication forms and techniques (written, oral,
+% electronic, etc.)], 01.30mm (Textbooks for graduates and
+% researchers)}
+
+\pacs{05.40.Jc [Brownian Motion], 05.10.Gg [Stochastic analysis methods (Fokker-Planck, Langevin, etc.)], 02.70.Ns [Molecular dynamics and particle methods]}
+%% Main document section
+\begin{document}
+\maketitle %% creates title page, do not remove this line.
+\makePrelim %% creates preliminary pages, do not remove this line.
+
+\input{1Introduction.tex}
+\input{2TheDetectionChallenge}
+\input{3Methods} %%could be model or experiment set-up
+\input{4RND} %%could be results and discussions
+\input{5SummaryAndConclusions.tex}
+%% you may add more chapters by including more files just as above.
+%% see the files for patterns of the format used.
+
+\appendix
+\input{appendix.tex}
+
+\bibliographystyle{plain}
+\bibliography{biblio} %% see file: "biblio.bib"
+\addcontentsline{toc}{chapter}{Bibliography}
+
+\end{document}
+%%end of main.tex

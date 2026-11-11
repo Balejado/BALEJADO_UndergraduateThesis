@@ -1,0 +1,132 @@
+% !TEX root =  main.tex
+\chapter{The Detection Methodology}
+\label{chap:3}
+Chapter~\ref{chap:2} closed on a specific, and still-open question: across a wide sweep of probe number $N_p$, where exactly does a two-dimensional Brownian search system stop behaving like a collection of independent searchers, and can the ergodic product $E = N_p \times \langle T \rangle$ catch that moment earlier than the raw mean detection time $\langle T \rangle$ can? This chapter lays out, step by step, how that question was turned into a concrete, repeatable simulation and analysis pipeline: how the simulated system was built, how its particles were made to move like real Brownian probes, how a ``detection" was defined and times, and how the resulting numbers were turned into the statistics reported in the results and discussion chapter.
+
+\section{Non-Equilibrium Mixtures}
+\label{sec:3.1}
+Every simulation in this study models the same basic scene: a flat, square, two-dimensional box populated by two kinds of particles that never chemically react or convert into one another, but that constantly push each other around through short-range collisions. This qualifies as a \textbf{non-equilibrium mixture}: unlike a gas of identical molecules at thermal equilibrium, the two species here differ in size and in how strongly they are damped by the fluid, so the system has no single, symmetric equilibrium state to relax into so it is simply driven, indefinitely, by thermal noise. The two species are:
+
+\begin{itemize}
+  \item \textbf{Polystyrene probe particles} ($N_p$), diameter $d_p = 2.0~\mu\text{m}$, playing the role of the searchers; and
+  \item \textbf{Foreign particles} ($N_f = N_\text{total} - N_p$), diameter $d_f = 1.0~\mu\text{m}$, representing the impurity being searched for.
+\end{itemize}
+
+Rather than fixing the total particle count and varying only $N_p$, this thesis repeats the entire sweep at six different values of total number of particle in the system $N_\text{total}$ (10, 30, 50, 70, 100, and 200), so that any trend identified is checked for consistency across system size rather than being an artifact of one particular box. For each $N_\text{total}$, $N_p$ is swept from a single lone probe up to nearly the full population, using the same fractional schedule in every case: $N_p$ is set to 1, 2, 3, \ldots, 9, then 10\%, 20\%, \ldots, 90\%, 95\%, and 99\% of $N_\text{total}$, rounding to the nearest whole particle and never letting $N_p$ fall below 1. This is the same probe-density sweep implemented directly in the LAMMPS input script through the nested \texttt{loop\_percent} and \texttt{loop\_seed} loops, and it is what allows the same set of area fractions to be revisited, system after system, in Chapter~\ref{chap:4}.
+
+\section{Area Fraction and the Packing Ceiling}
+\label{sec:3.2}
+The single number used throughout this thesis to describe how ``full'' the box is, at any given $N_p$, is the \textbf{area fraction} $\phi$, already defined in Equation~\ref{eqn:1.8} as the fraction of the box's total area physically occupied by particles:
+
+\begin{equation}
+    \phi = \frac{N_p \pi r_p^2 + N_f \pi r_f^2 }{A_\text{box}}, \qquad A_\text{box} = L \times L
+    \label{eq:3.1}
+\end{equation}
+
+Because $r_p \neq r_f$, $\phi$ changes with $N_p$ even at fixed $N_\text{total}$, which is why every figure in Chapter~\ref{chap:4} carries a second horizontal axis converting $N_p$ into $\phi$. As a sanity ceiling, no simulated system in this thesis is ever allowed to approach the theoretical two-dimensional hexagonal
+close packing (HCP) fraction, $\phi_\text{HCP} = \pi/(2\sqrt{3}) \approx 90.7\%$ (Section~\ref{sec:1.2}); the highest area fractions actually reached, near $\phi \approx 48\%$, sit well below that geometric limit, meaning the crowding effects reported in Chapter~\ref{chap:4} are a dynamical, caging-driven phenomenon and not simply a consequence of running out of physical space.
+
+\section{Box Size and Periodic Boundary Conditions}
+\label{sec:3.3}
+For each $N_\text{total}$, the box side length $L$ was fixed in advance so that sweeping $N_p$ from 1 to $N_\text{total}-1$ traces out the same, comparable range of area fractions (roughly 12\% to 48\%) regardless of system size. The six box sizes used were $L = 8.03$, $13.9$, $17.96$, $21.26$, $25.4$, and $35.92~\mu\text{m}$ for $N_\text{total} = 10, 30, 50, 70, 100$, and $200$ respectively. Every box uses \textbf{periodic boundary conditions} (PBC) where a particle that exits through the right edge of the box re-enters through the left edge, and likewise for the top and bottom, so that the simulated patch of fluid behaves as if it were one tile in an infinitely repeating grid rather than a container with hard, particle-repelling walls (which often results in the simulation blowing up). This choice removes wall effects from the physics being studied and is what makes the \textbf{minimum image convention}, described in Section~\ref{section:3.4}, necessary when measuring distances between particles.
+
+\section{Simulation Settings and Particle Parameters}
+\label{section:3.4}
+All simulations were run in LAMMPS \cite{Thompson2022}, using two-dimensional spherical particles (\texttt{atom\_style sphere}, \texttt{dimension 2}) at a fixed \textbf{mass density} of $\rho = 1050~\text{kg/m}^3$, matching real polystyrene microspheres in water and consistent with the group's earlier
+diffusion-coefficient work \cite{Cusi2018, balejado2025}. The surrounding fluid is water at $T = 298~\text{K}$, with a \textbf{viscosity} of $\eta = 0.89~\text{mPa·s}$; viscosity enters the simulation not as an explicit force field but implicitly, through the Langevin damping parameter described next.
+
+\section{The Langevin Damping Parameter}
+\label{sec:3.5}
+Every probe and foreign particle is driven by a Langevin thermostat (\texttt{fix langevin}), which realizes the stochastic equation of motion introduced in Section~\ref{sec:1.2}: a viscous drag term plus a random thermal kick. The strength of the drag is set by the \textbf{Langevin damping parameter} given by,
+
+\begin{equation}
+  \tau_\text{damp} = \frac{m}{6 \pi \eta r},
+  \label{eq:3.2}
+\end{equation}
+
+the characteristic time over which a particle's own momentum is erased by collisions with the fluid. For the $2.0~\mu\text{m}$ probe, this works out to $\tau_\text{damp} \approx 0.262~\mu\text{s}$, and the LAMMPS input script sets this value directly as the \texttt{damp} argument of \texttt{fix langevin} for the probe group. The foreign particles, being smaller, are assigned a shorter damping time of $0.1~\mu\text{s}$. Unlike the probe's $\tau_\text{damp}$, which is computed directly from Equation~\ref{eq:3.2}, the foreign particle's damping time was set deliberately rather than calculated from its Stokes radius: a round value of $0.1\,\mu$s, ensuring the smaller species equilibrates into the diffusive regime at least as quickly as the probe and does not become the limiting timescale for the $\tau \gg \tau_\text{damp}$ criterion applied uniformly in Section~\ref{sec:3.7}. This parameter is not a free dial; it is the same quantity whose mishandling was shown, in the group's prior sampling-interval study \cite{balejado2025}, to silently bias diffusion coefficient measurements low when the simulation is sampled too quickly. Its role is revisited directly in Section~\ref{section:3.4}.
+
+\section{The Three-Stage LAMMPS Protocol}
+\label{sec:3.6}
+Simply dropping $N_\text{total}$ particles into the box at random, at the target density, would leave many of them overlapping, which is physically meaningless and numerically unstable. Instead, each run proceeds through three distinct stages.
+
+\subsection{Stage 1: Overlap Removal}
+\label{sec:3.6.1}
+Particles are first placed at random positions inside an oversized box, four times the linear dimension of the final target box ($4L \times 4L$, via the \texttt{expand} variable). A soft, purely repulsive potential (\texttt{pair\_style soft}) gently pushes overlapping particles apart over 50,000 timesteps, with particle velocities capped (\texttt{fix nve/limit}) to prevent the sudden, unphysical accelerations that would otherwise occur if two particles happened to start on top of one another.
+
+\subsection{Stage 2: Compression} 
+\label{sec:3.6.2}
+With no more overlaps, the box is compressed from $4L \times 4L$ down to the final $L \times L$ target size over a further 100{,}000 steps (\texttt{fix deform}), again under the soft potential and velocity limiting, so that particles are squeezed toward their intended packing density gradually rather than being teleported into a suddenly crowded box.
+
+
+\subsection{Stage 3: Production - Weeks-Chandler-Andersen Repulsion and Brownian Dynamics}
+\label{sec:3.6.3}
+Only in the final, production stage are the particles switched onto the physics this thesis actually studies. The soft potential is replaced by the \textbf{Weeks-Chandler-Andersen (WCA) potential} (Equation~\ref{eqn:1.9}), implemented in LAMMPS as a Lennard-Jones potential (\texttt{pair\_style lj/cut}) truncated at its energy minimum and shifted to zero at the cutoff (\texttt{pair\_modify shift yes}), so that particles feel a purely repulsive excluded-volume force and nothing attractive. Each Langevin fix is left active, now driving genuine Brownian motion rather than merely relaxing overlaps. The production run integrates $2.0 \times 10^{8}$ steps at $\Delta t = 0.01~\mu\text{s}$, giving a total simulated time of $2.0~\text{s}$ per run, with particle positions written to disk (\texttt{dump}) every 100 steps, i.e. every $\tau = 1.0~\mu\text{s}$ of simulated time. Every ($N_\text{total}$, $N_p$) combination described in Section~\ref{sec:3.1} is repeated across 10 independent random seeds, so that the mean detection time reported for each condition in Chapter~\ref{chap:4} is itself an average over 10 statistically independent realizations of the same physical setup, not a single run.
+
+\section{Verifying Pure Brownian Dynamics}
+\label{sec:3.7}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width = 0.95\linewidth]{figures/2Dtrajectory.pdf}
+    \caption{Representative unwrapped 2D trajectory of a probe particle (type 1) and a foreign particle (type 2) during the production stage, illustrating undirected Brownian motion with no systematic drift.}
+    \label{fig:2Dtrajectory}
+\end{figure}
+
+\noindent Before any detection-time measurement can be trusted, the simulation itself has to be shown to be doing what it claims: moving each particle species by pure, undirected Brownian motion, not some artifact of an ill-chosen timestep. This verification step, standard practice established in the group's prior work \cite{Cusi2020, balejado2025}, uses two independent estimators of the \textbf{diffusion coefficient} $D$ (Section~\ref{sec:1.2}), computed from particle trajectories collected during production (Figure \ref{fig:2Dtrajectory}):
+
+\begin{align}
+  \text{MSD}(\tau) &= \left\langle \left[\mathbf{r}(t+\tau) - \mathbf{r}(t)\right]^2 \right\rangle = 2dD_\text{MSD}\,\tau,
+  \label{eq:3.3} \\
+  D_\text{var} &= \frac{\sigma_x^2 + \sigma_y^2}{2d\tau},
+  \label{eq:3.4}
+\end{align}
+
+where $d = 2$ for the two-dimensional systems used here. Both are checked against the theoretical Stokes-Einstein value, $D_\text{th} = k_B T / (6\pi\eta r_p) \approx 0.245~\mu\text{m}^2/\text{s}$ for the probe. Critically, this comparison is only meaningful at a \textbf{sampling time interval} $\tau$ chosen to satisfy $\tau \gg \tau_\text{damp}$: the group's earlier work showed that sampling at or below $\tau_\text{damp}$ catches particles still in their ballistic, momentum-dominated regime, which biases both $D_\text{MSD}$ and $D_\text{var}$ low regardless of how long the trajectory is \cite{balejado2025}. With $\tau_\text{damp} \approx 0.262~\mu\text{s}$ for the probe and a chosen dump interval of $\tau = 1.0~\mu\text{s}$, this thesis operates safely inside the diffusive regime, and both diffusion estimators are confirmed to agree with $D_\text{th}$ before any detection statistics are computed.
+
+For the foreign particle, the theoretical Stokes-Einstein prediction is $D_\text{th} \approx 9.3\times 10^{-14} \,m^2$/s, compared with $D_\text{MSD} \approx 9.23\times10^{-14}\, m^2$/s and $D_\text{var} = 8.46\times10^{-14}\,m^2$/s extracted from the trajectories (Figure~1.2), showing agreement to within a few percent for $D_\text{MSD}$ and somewhat looser agreement for $D_\text{var}$. Take note as well that because $\tau_{damp}$ for the foreign species was fixed at $0.1\,\mu$s for computational efficiency, its $D_{th}$ is $0.091\,\mu\text{m}^2/s$ rather than $0.490\,\mu\textbf{m}^2/s$ (which pure Stokes-Einstein scaling would predict for $r=0.5\,\mu$m). Together with the probe's own agreement, both species are confirmed to be undergoing pure diffusive Brownian motion at the chosen sampling interval before any detection statistics are computed.
+
+\section{Defining and Extracting the First-Passage Detection Time}
+\label{sec:3.8}
+With Brownian motion confirmed, the next task is to decide, precisely, what counts as a ``detection.'' A probe is considered to have detected a target the first instant it comes within a fixed \textbf{interaction radius}, $R_\text{int} = 1.5~\mu\text{m}$, of any foreign particle. This radius stands in for the physical \textbf{collision cross section} $\sigma_{\alpha\beta}$ introduced in Section~\ref{sec:1.2}: rather than requiring the two particles' surfaces to touch exactly, $R_\text{int}$ defines a slightly generous capture zone around each foreign particle, representing the effective range over which a real sensor or reactive site would register contact. Because the simulation box is periodic,
+computing the distance between a probe and a foreign particle na\"ively (by simple coordinate subtraction) would be wrong whenever the two happen to sit on opposite sides of the box, since periodic images can be much closer than the raw coordinates suggest. Every distance calculation therefore applies the \textbf{minimum image convention}, wrapping each coordinate difference into the range $[-L/2, L/2]$ before computing distance, so that a probe near the right edge of the box correctly registers as close to a foreign particle just across the periodic boundary on the left.
+
+%reread from here vens hehe
+Concretely, the extraction algorithm reads each simulation's dump file frame by frame, and for every frame, computes the minimum-image pairwise distance between every probe and every foreign particle present. The first frame at which this minimum distance drops below $R_\text{int}$, for any probe-foreign pair, marks the moment of first-passage detection, and the corresponding simulation timestep, converted to physical time via the timestep size $\Delta t$, is recorded as that run's detection time $T$. If no such crossing ever occurs before the $2.0~\text{s}$ production run ends, that run is logged as non-detecting; the fraction of runs that do detect within the simulated window was tracked and can be reported alongside $\langle T \rangle$ for every ($N_\text{total}$, $N_p$) condition in Chapter~\ref{chap:4}, since a low detection fraction is itself evidence that $R_\text{int}$ was reached only rarely and that $\langle T \rangle$ for that condition should be read with caution. In this framing, $R_\text{int}$ acts as this thesis's operational \textbf{detection limit}: it is the fixed sensitivity threshold against which every probe configuration, dense or dilute, is judged.
+
+\section{Ensemble Statistics: Mean Detection Time and the Ergodic Product}
+\label{sec:3.9}
+For every ($N_\text{total}$, $N_p$) condition, the ten independent-seed detection times are combined into a mean first-passage detection time $\langle T \rangle$ and its standard error of the mean (SEM), $\text{SEM} = \text{SD}/\sqrt{n}$ with $n = 10$. The \textbf{ergodic product}, already introduced in Equation~\ref{eqn:1.1},
+
+\begin{equation}
+  E(N_p) = N_p \times \langle T \rangle,
+  \label{eq:3.5}
+\end{equation}
+
+is then computed at every $N_p$, with its uncertainty propagated directly as $N_p \times \text{SEM}$. To judge whether $E$ is behaving as the ideal, ergodic $1/N_p$ scaling law predicts (a flat line), a linear reference is extrapolated through the first few, most dilute $N_p$ points of each system, the region where probes are least likely to be interacting with one another. Any later, systematic upward departure of the measured $E(N_p)$ from that sub-critical extrapolation is read as the onset of non-ergodic, crowding-influenced behavior, and is the central diagnostic reported in Chapter~\ref{chap:4}.
+
+\section{The Caldera Model: Locating the Optimal Probe Density}
+\label{sec:3.10}
+Because $\langle T \rangle$ itself is expected to fall and then rise as $N_p$ increases (Section~\ref{sec:1.2}), each system's $\langle T \rangle$ versus $N_p$ curve was additionally fit to a simple two-term phenomenological model, referred to throughout this thesis as the \emph{caldera fit} for the shape it traces: a diffusion-limited decay competing with a crowding-limited rise,
+
+\begin{equation}
+  \langle T(N_p) \rangle \approx {a}{N_p^{-\alpha}} + b\,N_p^{\beta} + c,
+  \label{eq:3.6}
+\end{equation}
+
+where the first term captures the ideal search-theory expectation from Section~\ref{sec:2.3} (with $\alpha = 1$ recovering the textbook $1/N_p$ law exactly), the second term captures the steepening cost of crowding at high $N_p$, and $c$ is a small baseline floor detection time. Minimizing Equation~\ref{eq:3.6} with respect to $N_p$ yields $N_p^{*}$, the fitted optimal probe number, and its corresponding area fraction $\phi^{*}$ via Equation~\ref{eq:3.1}; both are reported per system size in Chapter~\ref{chap:4} alongside the raw data and the ergodic-product diagnostic, giving three independent ways of triangulating the same transition.
+
+In practice, Equation~\ref{eq:3.6} was fit to each system's ($N_p$, $\langle T \rangle$) data using bounded nonlinear least squares, weighted
+by each point's SEM so that the more uncertain, high-variance conditions at the extremes of the sweep (Section~\ref{sec:4.3}) are not allowed to dominate the fit as strongly as the tighter, more reliable points near the caldera floor. The exponents were bounded to $\alpha \in [0.01, 3.0]$ and $\beta \in [0.5, 6.0]$, and the amplitudes to $a \in [0,10]$, $b \in [0,1]$, $c \in [0,5]$, with a conservative starting guess of $\alpha_0 = 0.5$, $\beta_0 = 2.0$ near the ideal diffusion-limited and a mild crowding-limited starting point respectively. $N_p^{*}$ and $\phi^{*}$ were then read directly off the minimum of the fitted curve, evaluated on a dense grid of 500 points spanning each system's simulated $N_p$ range, rather than solved for analytically. A separate, purely descriptive weighted cubic smoothing spline was fit through the same points and is plotted alongside the caldera fit in every figure; the spline exists only to guide the eye between simulated points and carries no physical interpretation, unlike the caldera fit's parameters.
+
+Beyond locating $N_p^*$ and $\phi^*$ numerically, the shape of each system's fitted curve relative to its own statistical uncertainty was used to classify that system into one of four qualitative caldera profiles, ranging from a minimum that cannot be confidently distinguished from noise on the crowded side, to a sharply resolved rise well clear of the sub-critical floor. This typology, and the criteria used to assign each system to a category, is presented in full in Section~\ref{sec:4.6}.
+
+One caveat about the underlying $\langle T \rangle$ and SEM values feeding this fit is worth stating. Per Section~\ref{sec:3.8}, a run that never reaches $R_\text{int}$ within the 2.0~s production window is logged as non-detecting and excluded from that condition's mean; the reported $\langle T \rangle$ and SEM at every $N_p$ are therefore averages over \emph{detected} runs only, not over all ten seeds attempted. For most conditions the detection fraction is at or near 1.0 and this distinction is immaterial, but for the most crowded, slowest-detecting conditions near the top of each sweep (the same conditions responsible for the sharp upturns and widened error bars noted in Chapter~\ref{chap:4}) a lower detection fraction would mean the reported $\langle T \rangle$ is a lower-bound estimate, conditioned on the runs that happened to succeed, rather than the true mean over all attempts. Per-condition detection fractions were tracked during extraction (Section~\ref{sec:3.11}) precisely for this reason, and should be checked and reported alongside $\langle T \rangle$ for every high-$N_p$ point discussed in Chapter~\ref{chap:4}, particularly wherever a condition's detection fraction falls below the $0.9$ threshold used as a caution flag during extraction.
+
+\section{Visualizing the Distributions: Violin Plots}
+\label{sec:3.11}
+A mean and a standard error describe the center and spread of a distribution but say nothing about its shape, and this thesis specifically expects that shape to change with $N_p$: tight and symmetric in the diffusion-limited regime, broad and right-skewed once caging sets in (Section~\ref{sec:2.5}). To make that shape visible, detection time distributions for every $N_p$ are displayed as \textbf{violin plots} \cite{Hintze1998}, which mirror a kernel density estimate of the distribution about a central axis, with the inter-quartile range marked inside. For each $N_p$, a synthetic distribution of 300 samples was generated from a normal distribution matched to that condition's ensemble mean and standard deviation ($\text{SD} = \text{SEM}\times\sqrt{n}$, $n=10$), clipped to positive values only, since the underlying seed count ($n=10$ per condition) is too small on its own to draw a reliable density trace. This is explicitly an \emph{approximation} of the true underlying distribution shape rather than a plot of the ten raw per-seed detection times themselves, and is flagged as such wherever the violin plots are discussed in Chapter~\ref{chap:4}.
+
+\section{Software and Tools Summary}
+\label{sec:3.12}
+\hspace{\parindent} Simulations were carried out in LAMMPS \cite{Thompson2022}; particle trajectories were inspected visually in OVITO \cite{Stukowski2010}. All post-processing, detection-time extraction, statistical analysis, and figure generation (distribution plots, the $\langle T \rangle$)-versus-$N_p$ scaling curves, the ergodic product plots, the caldera fits, and the violin plots) were implemented in Python, using NumPy and SciPy for numerical work, Matplotlib and Seaborn for plotting, and pandas for organizing the combined, multi-system datasets used in the overlay figures for the Results and Discussion.
+
